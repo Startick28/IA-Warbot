@@ -5,6 +5,10 @@
 //
 ///////////////////////////////////////////////////////////////////////////
 
+class RedTeam extends Team {
+  final int MY_CUSTOM_MSG = 5;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 //
 // The code for the green bases
@@ -15,8 +19,8 @@ class RedBase extends Base {
   // constructor
   // ===========
   //
-  RedBase(PVector p, color c, int no) {
-    super(p, c);
+  RedBase(PVector p, color c, Team t, int no) {
+    super(p, c, t);
   }
 
   //
@@ -128,8 +132,8 @@ class RedExplorer extends Explorer {
   // constructor
   // ===========
   //
-  RedExplorer(PVector pos, color c, ArrayList b) {
-    super(pos, c, b);
+  RedExplorer(PVector pos, color c, ArrayList b, Team t) {
+    super(pos, c, b, t);
   }
 
   //
@@ -321,8 +325,8 @@ class RedHarvester extends Harvester {
   // constructor
   // ===========
   //
-  RedHarvester(PVector pos, color c, ArrayList b) {
-    super(pos, c, b);
+  RedHarvester(PVector pos, color c, ArrayList b, Team t) {
+    super(pos, c, b, t);
   }
 
   //
@@ -526,8 +530,8 @@ class RedRocketLauncher extends RocketLauncher {
   // constructor
   // ===========
   //
-  RedRocketLauncher(PVector pos, color c, ArrayList b) {
-    super(pos, c, b);
+  RedRocketLauncher(PVector pos, color c, ArrayList b, Team t) {
+    super(pos, c, b, t);
   }
 
   //

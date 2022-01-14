@@ -1,4 +1,9 @@
-/////////////////////////////////////////////////////////////////////////// //<>// //<>// //<>//
+class Team { //<>// //<>// //<>//
+  Team() {
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////
 //
 // Turtle
 // ======
@@ -66,7 +71,7 @@ class Turtle {
   //
   // input
   // -----
-  // > a = the angle of rotation
+  // > a = the angle of rotation (in degrees)
   //
   void right(float a) {
     // rotation is modulo 2 PI
@@ -80,7 +85,7 @@ class Turtle {
   //
   // input
   // -----
-  // > a = the angle of rotation
+  // > a = the angle of rotation (in degrees)
   //
   void left(float a) {
     // rotation is modulo 2 PI
@@ -281,6 +286,7 @@ class Robot extends Turtle {
   float speed;            // the speed
   boolean fdOK;           // is the agent allowed to move in the current time step?
   ArrayList myBases;      // the bases of the agent
+  Team team;              // the team of the agent
   PVector[] brain;        // memory of the agent
   color friend;           // the color of my team
   color ennemy;           // the color of the ennemy
@@ -306,9 +312,10 @@ class Robot extends Turtle {
   // p = the position of the robot
   // c = the colour of the robot
   // b = the list of bases of the team
+  // t = the team of the robot 
   // img = the image for the display of the agent
   //
-  Robot(PVector p, color c, ArrayList b, String img) {
+  Robot(PVector p, color c, ArrayList b, Team t, String img) {
     // robot is a turtle
     super(p, c, img);
     // initialize friend and ennemy colours
@@ -321,6 +328,8 @@ class Robot extends Turtle {
     }
     // my bases are b
     myBases = b;
+    // my team is t
+    team = t;
     // create a new brain
     brain = new PVector[5];
     for (int i=0; i<brain.length; i++)
@@ -414,7 +423,7 @@ class Robot extends Turtle {
   //
   // input
   // -----
-  // angle = the possible variation around current heading
+  // angle = the possible variation around current heading (in degrees)
   //
   void randomMove(float angle) {
     // randomly computes the new heading
@@ -441,7 +450,7 @@ class Robot extends Turtle {
       fdOK = false;
       // robot is not allowed to move faster than speed
       dist = min(dist, speed);
-
+      
       // check if there are robots ahead
       Robot bob = (Robot)game.minDist(this, game.perceiveRobotsInCone(this, collisionAngle, dist));
       float dBob = game.w;
@@ -507,7 +516,7 @@ class Robot extends Turtle {
   // input
   // -----
   // dist = the distance
-  // angle = the aperture of the cone
+  // angle = the aperture of the cone (in degrees)
   //
   // output
   // ------
@@ -619,7 +628,7 @@ class Robot extends Turtle {
   //
   // input
   // -----
-  // > a = the aperture of the cone
+  // > a = the aperture of the cone (in degrees)
   //
   // output
   // ------
@@ -636,7 +645,7 @@ class Robot extends Turtle {
   //
   // input
   // -----
-  // > a = the aperture of the cone
+  // > a = the aperture of the cone (in degrees)
   // > c = the colour of robots that we are looking for
   //
   // output
@@ -656,7 +665,7 @@ class Robot extends Turtle {
   //
   // input
   // -----
-  // > a = the aperture of the cone
+  // > a = the aperture of the cone (in degrees)
   // > c = the colour of robots that we are looking for
   // > b = the breed of robots that we are looking for
   //
@@ -676,7 +685,7 @@ class Robot extends Turtle {
   //
   // input
   // -----
-  // > a = the aperture of the cone
+  // > a = the aperture of the cone (in degrees)
   // > d = the size of the cone
   //
   // output
@@ -694,7 +703,7 @@ class Robot extends Turtle {
   //
   // input
   // -----
-  // > a = the aperture of the cone
+  // > a = the aperture of the cone (in degrees)
   // > d = the size of the cone
   // > c = the colour of robots that we are looking for
   //
@@ -715,7 +724,7 @@ class Robot extends Turtle {
   //
   // input
   // -----
-  // > a = the aperture of the cone
+  // > a = the aperture of the cone (in degrees)
   // > d = the size of the cone
   // > c = the colour of robots that we are looking for
   // > b = the breed of robots that we are looking for
@@ -753,7 +762,7 @@ class Robot extends Turtle {
   //
   // input
   // -----
-  // > a = the aperture of the cone
+  // > a = the aperture of the cone (in degrees)
   // > c = the colour of seeds that we are looking for
   //
   // output
@@ -785,7 +794,7 @@ class Robot extends Turtle {
   //
   // input
   // -----
-  // > a = the aperture of the cone
+  // > a = the aperture of the cone (in degrees)
   //
   // output
   // ------
@@ -815,7 +824,7 @@ class Robot extends Turtle {
   //
   // input
   // -----
-  // > a = the aperture of the cone
+  // > a = the aperture of the cone (in degrees)
   //
   // output
   // ------
@@ -845,7 +854,7 @@ class Robot extends Turtle {
   //
   // input
   // -----
-  // > a = the aperture of the cone
+  // > a = the aperture of the cone (in degrees)
   //
   // output
   // ------
@@ -866,7 +875,7 @@ class Robot extends Turtle {
   //
   // output
   // ------
-  // a turtle a set
+  // a turtle of the set
   //
   Turtle oneOf(ArrayList agentSet) {
     return game.oneOf(agentSet);
@@ -974,7 +983,6 @@ class Robot extends Turtle {
       bob. messages.add(msg);
     }
   }
-
 
   //
   // informAboutFood
@@ -1084,10 +1092,11 @@ class Base extends Robot {
   // -----
   // p = the position of the base
   // c = the colour of the base
+  // t = the team of the base
   //
-  Base(PVector p, color c) {
+  Base(PVector p, color c, Team t) {
     // a base is a robot
-    super(p, c, null, "Base.png");
+    super(p, c, null, t, "Base.png");
     // of type BASE
     breed = BASE;
     // it can create robots at next timestep
@@ -1492,10 +1501,11 @@ class Explorer extends Robot {
   // p = the position of the explorer
   // c = the colour of the explorer
   // b = the list of bases of the team
+  // t = the team of the explorer
   //
-  Explorer(PVector pos, color c, ArrayList b) {
+  Explorer(PVector pos, color c, ArrayList b, Team t) {
     // an explorer is a robot...
-    super(pos, c, b, "Explorer.png");
+    super(pos, c, b, t, "Explorer.png");
     // ...of breed EXPLORER
     breed = EXPLORER;
 
@@ -1507,9 +1517,21 @@ class Explorer extends Robot {
     deathBurgers = explorerBurgers;
   }
 
+  //
+  // giveFood
+  // ========
+  //
+  // input
+  // -----
+  // > bob = the robot to whom we give food
+  // > qty = the amound of food given
+  //
   void giveFood(Robot bob, float qty) {
+    // we can only give food to a harvester, an explorer or the base
     if ((bob != null) && ((bob.breed == HARVESTER) || (bob.breed == EXPLORER) || (bob.breed == BASE))) {
+      // if bob is next to us and we have enough food
       if ((game.distance(this, bob) <= 2) && (carryingFood >= qty)) {
+        // transfer the food to bob
         carryingFood -= qty;
         bob.carryingFood += qty;
       }
@@ -1541,10 +1563,11 @@ class Harvester extends Robot {
   // p = the position of the explorer
   // c = the colour of the explorer
   // b = the list of bases of the team
+  // t = the teamm of the harvester
   //
-  Harvester(PVector pos, color c, ArrayList b) {
+  Harvester(PVector pos, color c, ArrayList b, Team t) {
     // a harvester is a robot...
-    super(pos, c, b, "Harvester.png");
+    super(pos, c, b, t, "Harvester.png");
     // ...of breed HARVESTER
     breed = HARVESTER;
 
@@ -1610,7 +1633,7 @@ class Harvester extends Robot {
   //
   // input
   // -----
-  // > bob = the robot to which food is given
+  // > bob = the robot to whom food is given
   // > qty = the amount of food that is given 
   //
   void giveFood(Robot bob, float qty) {
@@ -1700,10 +1723,11 @@ class RocketLauncher extends Robot {
   // p = the position of the explorer
   // c = the colour of the explorer
   // b = the list of bases of the team
+  // t = the team of the rocket launcher
   //
-  RocketLauncher(PVector pos, color c, ArrayList b) {
+  RocketLauncher(PVector pos, color c, ArrayList b, Team t) {
     // a rocket launcher is a robot...
-    super(pos, c, b, "RLauncher.png");
+    super(pos, c, b, t, "RLauncher.png");
     // ...of breed LAUNCHER
     breed = LAUNCHER;
 

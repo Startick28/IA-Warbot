@@ -82,30 +82,32 @@ class Simulation {
     // creation of green team
     println("Création de l'équipe verte");
     PVector position;
+    GreenTeam gt = new GreenTeam();
     // first base
     position = new PVector(width/2 - 300, (height - 100)/2 - 150);
-    Base b = new GreenBase(position, green, 1);
+    Base b = new GreenBase(position, green, gt, 1);
     greenBases.add(b);
     robots.add(b);
     b.setup();
     // second base
     position = new PVector(width/2 - 300, (height - 100)/2 + 150);
-    b = new GreenBase(position, green, 2);
+    b = new GreenBase(position, green, gt, 2);
     greenBases.add(b);
     robots.add(b);
     b.setup();
 
     // creation of red team
     println("Création de l'équipe rouge");
+    RedTeam rt = new RedTeam();
     // first base
     position = new PVector(width/2 + 300, (height - 100)/2 - 150);
-    b = new RedBase(position, red, 1);
+    b = new RedBase(position, red, rt, 1);
     redBases.add(b);
     robots.add(b);
     b.setup();
     // second base
     position = new PVector(width/2 + 300, (height - 100)/2 + 150);
-    b = new RedBase(position, red, 2);
+    b = new RedBase(position, red, rt, 2);
     redBases.add(b);
     robots.add(b);
     b.setup();
@@ -239,8 +241,9 @@ class Simulation {
   // > update the energy graph
   //
   void displayNrj() {
-    // the background of the graph is wahite
+    // the background of the graph is white
     fill(255);
+    strokeWeight(2);
     rect(350, height - 100, 600, 100);
     // draws the green graph
     stroke(0, 255, 0);
@@ -256,6 +259,7 @@ class Simulation {
       vertex(350 + i * 600 / ticks, height - redNrj[i] * 100 / maxNrj);
     }
     endShape();
+    strokeWeight(1);
   }
 
   //
@@ -341,7 +345,7 @@ class Simulation {
         bob.die();
     }
 
-    // supprime the destroyed walls
+    // remove the destroyed walls
     for (int i=0; i<walls.size(); i++) {
       wally = walls.get(i);
       if (wally.energy <= 0) {
@@ -467,9 +471,9 @@ class Simulation {
     Explorer explorer = null;
     // create a green or red explorer depending on the colour of the base
     if (agt.colour == green) {
-      explorer = new GreenExplorer(p, green, greenBases);
+      explorer = new GreenExplorer(p, green, greenBases, agt.team);
     } else if (agt.colour == red) {
-      explorer = new RedExplorer(p, red, redBases);
+      explorer = new RedExplorer(p, red, redBases, agt.team);
     }
     if (explorer != null) {
       // if creation was succesfull, add explorer to the robots...
@@ -495,9 +499,9 @@ class Simulation {
     Harvester harvester = null;
     // create a green or red harvester depending on the colour of the base
     if (agt.colour == green) {
-      harvester = new GreenHarvester(p, green, greenBases);
+      harvester = new GreenHarvester(p, green, greenBases, agt.team);
     } else if (agt.colour == red) {
-      harvester = new RedHarvester(p, red, redBases);
+      harvester = new RedHarvester(p, red, redBases, agt.team);
     }
     if (harvester != null) {
       // if creation was succesfull, add harvester to the robots...
@@ -523,9 +527,9 @@ class Simulation {
     RocketLauncher launcher = null;
     // create a green or red rocket launcher depending on the colour of the base
     if (agt.colour == green) {
-      launcher = new GreenRocketLauncher(p, green, greenBases);
+      launcher = new GreenRocketLauncher(p, green, greenBases, agt.team);
     } else if (agt.colour == red) {
-      launcher = new RedRocketLauncher(p, red, redBases);
+      launcher = new RedRocketLauncher(p, red, redBases, agt.team);
     }
     if (launcher != null) {
       // if creation was succesfull, add rocket launcher to the robots...
@@ -548,12 +552,15 @@ class Simulation {
   // > c = the colour of the wall
   //
   void newWall(PVector p, color c) {
-    // create a new wall
-    Wall wally = new Wall(p, c);
-    // if creation was succesfull, add wally to the walls...
-    walls.add(wally);
-    // ...and to the patches
-    patches[int(p.x / patchSize)][int(p.y / patchSize)].addWall(wally);
+    // only possible to add a new wall if none in the patch
+    if (game.freePatch(p)) {
+      // create a new wall
+      Wall wally = new Wall(p, c);
+      // add wally to the walls...
+      walls.add(wally);
+      // ...and to the patches
+      patches[int(p.x / patchSize)][int(p.y / patchSize)].addWall(wally);
+    }
   }
 
   //
@@ -1585,10 +1592,11 @@ class Simulation {
   //
   // output
   // ------
-  // true if no robots on the patch  
+  // true if no robots nor walls on the patch  
   //
   boolean freePatch(PVector p) {
-    return (patches[int(p.x / patchSize)][int(p.y / patchSize)].robots.size() == 0);
+    return ((patches[int(p.x / patchSize)][int(p.y / patchSize)].robots.size() == 0) &&
+      (patches[int(p.x / patchSize)][int(p.y / patchSize)].walls.size() == 0));
   }
 
   //
@@ -1604,7 +1612,7 @@ class Simulation {
   //
   // output
   // ------
-  // true if the way is free
+  // true if the way is free (no robot nor wall ahead)
   //
   boolean freeAhead(Robot bob, float dist, float angle) {
     // for all robots
@@ -1613,6 +1621,18 @@ class Simulation {
       if ((r != bob) && (distance(bob, r) <= dist)) {
         // check if r is in the cone
         float a = bob.towards(r);
+        if (((a >= bob.heading - angle) && (a <= bob.heading + angle)) ||
+          ((bob.heading + angle >= TWO_PI) && (a + TWO_PI <= bob.heading + angle)) ||
+          ((bob.heading - angle <= 0) && (a - TWO_PI >= bob.heading - angle)))
+          return false;
+      }
+    }
+    // for all walls
+    for (Wall w : walls) {
+      // if w is close enough
+      if (distance(bob, w) <= dist) {
+        // check if w is in the cone
+        float a = bob.towards(w);
         if (((a >= bob.heading - angle) && (a <= bob.heading + angle)) ||
           ((bob.heading + angle >= TWO_PI) && (a + TWO_PI <= bob.heading + angle)) ||
           ((bob.heading - angle <= 0) && (a - TWO_PI >= bob.heading - angle)))

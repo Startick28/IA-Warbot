@@ -5,6 +5,10 @@
 //
 ///////////////////////////////////////////////////////////////////////////
 
+class GreenTeam extends Team {
+  final int MY_CUSTOM_MSG = 5;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 //
 // The code for the green bases
@@ -21,8 +25,8 @@ class GreenBase extends Base {
   // constructor
   // ===========
   //
-  GreenBase(PVector p, color c, int no) {
-    super(p, c);
+  GreenBase(PVector p, color c, Team t, int no) {
+    super(p, c, t);
     if (no == 1)
       setPosition(new PVector(game.w2 / 3, game.h2, 0));
     else
@@ -36,9 +40,9 @@ class GreenBase extends Base {
   //
   void setup() {
     // creates a new harvester
-    newHarvester();
+    newExplorer();
     // 7 more harvesters to create
-    brain[5].x = 7;
+    brain[5].z = 7;
   }
 
   //
@@ -138,8 +142,8 @@ class GreenExplorer extends Explorer {
   // constructor
   // ===========
   //
-  GreenExplorer(PVector pos, color c, ArrayList b) {
-    super(pos, c, b);
+  GreenExplorer(PVector pos, color c, ArrayList b, Team t) {
+    super(pos, c, b, t);
   }
 
   //
@@ -168,7 +172,12 @@ class GreenExplorer extends Explorer {
       goBackToBase();
     } else {
       // ...or explore randomly
-      randomMove(45);
+      // randomly computes the new heading
+      heading += random(-radians(45), radians(45));
+      // if the environment is free ahead of the robot
+      if (freeAhead(speed, collisionAngle))
+        // move forward at full speed
+        forward(speed);
     }
 
     // tries to localize ennemy bases
@@ -312,7 +321,7 @@ class GreenExplorer extends Explorer {
 
     // if there is no obstacle ahead, move forward at full speed
     if (freeAhead(speed))
-      forward(speed);
+      forward(speed * 0.1);
   }
 }
 
@@ -331,8 +340,8 @@ class GreenHarvester extends Harvester {
   // constructor
   // ===========
   //
-  GreenHarvester(PVector pos, color c, ArrayList b) {
-    super(pos, c, b);
+  GreenHarvester(PVector pos, color c, ArrayList b, Team t) {
+    super(pos, c, b, t);
   }
 
   //
@@ -536,8 +545,8 @@ class GreenRocketLauncher extends RocketLauncher {
   // constructor
   // ===========
   //
-  GreenRocketLauncher(PVector pos, color c, ArrayList b) {
-    super(pos, c, b);
+  GreenRocketLauncher(PVector pos, color c, ArrayList b, Team t) {
+    super(pos, c, b, t);
   }
 
   //

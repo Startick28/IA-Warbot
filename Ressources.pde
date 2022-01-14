@@ -25,8 +25,6 @@ class Burger extends Turtle {
     shape = loadImage("Burger.png");
     size = scale;
     energy = random(wildBurgerMinNrj, wildBurgerMaxNrj);
-    // add it to the patch
-    game.patches[int(pos.x / patchSize)][int(pos.y / patchSize)].addBurger(this);
   }
 
   //
@@ -45,8 +43,6 @@ class Burger extends Turtle {
     shape = loadImage("Burger.png");
     size = scale;
     energy = random(min, max);
-    // add it to the patch
-    game.patches[int(pos.x / patchSize)][int(pos.y / patchSize)].addBurger(this);
   }
 
   //
@@ -100,8 +96,6 @@ class Seed extends Turtle {
     colour = c;
     age = 0;
     energy = 100;
-    // add it to the patch
-    game.patches[int(pos.x / patchSize)][int(pos.y / patchSize)].addSeed(this);
   }
 
   //
@@ -162,18 +156,13 @@ class Wall extends Turtle {
   // > c = the color of the wall
   //
   Wall(PVector p, color c) {
-    // only possible to add a new wall if none in the patch
-    if (game.freePatch(p)) {
-      // initialize the wall
-      breed = WALL;
-      pos = new PVector(p.x, p.y);
-      energy = wallNrj;
-      shape = loadImage("Wall.png");
-      size = 2 * scale;
-      colour = c;
-      // add it to the patch
-      game.patches[int(pos.x / patchSize)][int(pos.y / patchSize)].addWall(this);
-    }
+    // initialize the wall
+    breed = WALL;
+    pos = new PVector(p.x, p.y);
+    energy = wallNrj;
+    shape = loadImage("Wall.png");
+    size = 2 * scale;
+    colour = c;
   }
 
   //
@@ -297,10 +286,10 @@ class Faf extends Missile {
   Faf(PVector p, Robot bob) {
     // initialize the target
     target = bob;
-    heading = towards(target);
     // the bullet is shifted from the position of the shooter to avoid self hits
     pos = new PVector(p.x + 0.5 * cos(heading) * patchSize, p.y + 0.5 * sin(heading) * patchSize);
     game.wrapPosition(pos);
+
     energy = 100;
     range = fafRange;
     speed = fafSpeed;
