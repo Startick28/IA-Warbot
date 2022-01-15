@@ -7,6 +7,20 @@
 
 class RedTeam extends Team {
   final int MY_CUSTOM_MSG = 5;
+
+  // STRATEGY PARAMETERS
+
+  // Step 1 specifics
+  final int wildBurgerThresholdToFarm = 1000;
+
+  // Step 2 specifics
+  final int nbHarvesterToCreate = 50;
+  final float ratioBurgerForBase = 20.0/100.0;
+  final int bulletsThresholdForArmaggedon = 1000;
+
+  // Step 3 specifics
+  final int missileLauncherToCreate = 100;
+
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -42,49 +56,30 @@ class RedBase extends Base {
   // > defines the behavior of the agent
   //
   void go() {
+
+    // DETERMINATION OF THE CURRENT GAME STATE
+    // -> State stored in brain[10]
+    // brain[10].x = n -> Step n
+    // brain[10].y = ( 0 -> No emergency ; 1 -> Emergency : Attacked by enemy)
+    // Step 1 : Exploration + Burger Collection
+    // Step 2 : Power Farm
+    // Step 3 : Armaggedon
+
+    determineCurrentState();
+
+
     // handle received messages 
     handleMessages();
 
-    // creates new robots depending on energy and the state of brain[5]
-    if ((brain[5].x > 0) && (energy >= 1000 + harvesterCost)) {
-      // 1st priority = creates harvesters 
-      if (newHarvester())
-        brain[5].x--;
-    } else if ((brain[5].y > 0) && (energy >= 1000 + launcherCost)) {
-      // 2nd priority = creates rocket launchers 
-      if (newRocketLauncher())
-        brain[5].y--;
-    } else if ((brain[5].z > 0) && (energy >= 1000 + explorerCost)) {
-      // 3rd priority = creates explorers 
-      if (newExplorer())
-        brain[5].z--;
-    } else if (energy > 12000) {
-      // if no robot in the pipe and enough energy 
-      if ((int)random(2) == 0)
-        // creates a new harvester with 50% chance
-        brain[5].x++;
-      else if ((int)random(2) == 0)
-        // creates a new rocket launcher with 25% chance
-        brain[5].y++;
-      else
-        // creates a new explorer with 25% chance
-        brain[5].z++;
-    }
+    //// ROBOT CREATION
+    robotCreation();
+    
 
     // creates new bullets and fafs if the stock is low and enought energy
-    if ((bullets < 10) && (energy > 1000))
-      newBullets(50);
-    if ((bullets < 10) && (energy > 1000))
-      newFafs(10);
+    manageMissiles();
 
     // if ennemy rocket launcher in the area of perception
-    Robot bob = (Robot)minDist(perceiveRobots(ennemy, LAUNCHER));
-    if (bob != null) {
-      heading = towards(bob);
-      // launch a faf if no friend robot on the trajectory...
-      if (perceiveRobotsInCone(friend, heading) == null)
-        launchFaf(bob);
-    }
+    selfDefense();
   }
 
   //
@@ -114,6 +109,58 @@ class RedBase extends Base {
     // clear the message queue
     flushMessages();
   }
+
+  void determineCurrentState()
+  {
+
+  }
+
+  void robotCreation()
+  {
+    // creates new robots depending on energy and the state of brain[5]
+    if ((brain[5].x > 0) && (energy >= 1000 + harvesterCost)) {
+      // 1st priority = creates harvesters 
+      if (newHarvester())
+        brain[5].x--;
+    } else if ((brain[5].y > 0) && (energy >= 1000 + launcherCost)) {
+      // 2nd priority = creates rocket launchers 
+      if (newRocketLauncher())
+        brain[5].y--;
+    } else if ((brain[5].z > 0) && (energy >= 1000 + explorerCost)) {
+      // 3rd priority = creates explorers 
+      if (newExplorer())
+        brain[5].z--;
+    } else if (energy > 12000) {
+      // if no robot in the pipe and enough energy 
+      if ((int)random(2) == 0)
+        // creates a new harvester with 50% chance
+        brain[5].x++;
+      else if ((int)random(2) == 0)
+        // creates a new rocket launcher with 25% chance
+        brain[5].y++;
+      else
+        // creates a new explorer with 25% chance
+        brain[5].z++;
+    }
+  }
+
+  void manageMissiles()
+  {
+    if ((bullets < 10) && (energy > 1000)) newBullets(50);
+    if ((bullets < 10) && (energy > 1000)) newFafs(10);
+  }
+
+  selfDefense()
+  {
+    Robot bob = (Robot)minDist(perceiveRobots(ennemy, LAUNCHER));
+    if (bob != null) {
+      heading = towards(bob);
+      // launch a faf if no friend robot on the trajectory...
+      if (perceiveRobotsInCone(friend, heading) == null)
+        launchFaf(bob);
+    }
+  }
+
 }
 
 ///////////////////////////////////////////////////////////////////////////
