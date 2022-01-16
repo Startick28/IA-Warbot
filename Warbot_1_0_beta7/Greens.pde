@@ -55,31 +55,37 @@ class GreenBase extends Base {
     // handle received messages 
     handleMessages();
 
-    // creates new robots depending on energy and the state of brain[5]
-    if ((brain[5].x > 0) && (energy >= 1000 + harvesterCost)) {
-      // 1st priority = creates harvesters 
-      if (newHarvester())
-        brain[5].x--;
-    } else if ((brain[5].y > 0) && (energy >= 1000 + launcherCost)) {
-      // 2nd priority = creates rocket launchers 
-      if (newRocketLauncher())
-        brain[5].y--;
-    } else if ((brain[5].z > 0) && (energy >= 1000 + explorerCost)) {
-      // 3rd priority = creates explorers 
-      if (newExplorer())
-        brain[5].z--;
-    } else if (energy > 12000) {
-      // if no robot in the pipe and enough energy 
-      if ((int)random(10) >= 8)
-        // creates a new harvester with 50% chance
-        brain[5].x++;
-      else if ((int)random(10) >= 4)
-        // creates a new rocket launcher with 25% chance
-        brain[5].y++;
-      else
-        // creates a new explorer with 25% chance
-        brain[5].z++;
-    }
+    boolean createRobots = true;
+    if (createRobots)
+    {
+      // creates new robots depending on energy and the state of brain[5]
+      if ((brain[5].x > 0) && (energy >= 1000 + harvesterCost)) {
+        // 1st priority = creates harvesters 
+        if (newHarvester())
+          brain[5].x--;
+      } else if ((brain[5].y > 0) && (energy >= 1000 + launcherCost)) {
+        // 2nd priority = creates rocket launchers 
+        if (newRocketLauncher())
+          brain[5].y--;
+      } else if ((brain[5].z > 0) && (energy >= 1000 + explorerCost)) {
+        // 3rd priority = creates explorers 
+        if (newExplorer())
+          brain[5].z--;
+      } else if (energy > 12000) {
+        // if no robot in the pipe and enough energy 
+        if ((int)random(10) >= 8)
+          // creates a new harvester with 50% chance
+          brain[5].x++;
+        else if ((int)random(10) >= 4)
+          // creates a new rocket launcher with 25% chance
+          brain[5].y++;
+        else
+          // creates a new explorer with 25% chance
+          brain[5].z++;
+      }
+      
+    } 
+    
 
     // creates new bullets and fafs if the stock is low and enought energy
     if ((bullets < 10) && (energy > 1000))
