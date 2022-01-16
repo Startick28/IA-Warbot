@@ -42,7 +42,7 @@ class GreenBase extends Base {
     // creates a new harvester
     newExplorer();
     // 7 more harvesters to create
-    brain[5].z = 7;
+    brain[5].x = 7;
   }
 
   //
@@ -70,10 +70,10 @@ class GreenBase extends Base {
         brain[5].z--;
     } else if (energy > 12000) {
       // if no robot in the pipe and enough energy 
-      if ((int)random(2) == 0)
+      if ((int)random(10) >= 8)
         // creates a new harvester with 50% chance
         brain[5].x++;
-      else if ((int)random(2) == 0)
+      else if ((int)random(10) >= 4)
         // creates a new rocket launcher with 25% chance
         brain[5].y++;
       else
