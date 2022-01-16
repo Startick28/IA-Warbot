@@ -786,10 +786,9 @@ class RedExplorer extends Explorer {
   }
 
 
-  void explorerBehaviorStep2()
+void explorerBehaviorStep2()
   {
     Base bob = (Base)minDist(myBases);
-    float dist = distance(bob);
 
     // if food to deposit or too few energy
     if ((carryingFood > 200) || (energy < 100))
@@ -800,69 +799,193 @@ class RedExplorer extends Explorer {
     if (brain[3].x == 1) {
       // go back to base...
       goBackToBase();
-    } else if(brain[3].x == 0) {
-      // Going back to the orbit, for example after a refill
-      goBackToOrbit();
-    } else if (brain[3].x == 2) {
-      // Move in orbit in the trigonometric direction
-      moveInOrbit();
-    } else {
-      // if brain[3].x = 3
-      //TargetLock();
+    } else if(brain[3].x == 0 || (brain[3].x == 2 && perceiveRobots(ennemy) == null)) {
+      // Going back to the orbit (==0) OR moving in orbit (==2) (only if no ennemies are detected)
+      orbitAroundPointExp(bob.pos.x, bob.pos.y, 9);
+    } else if (brain[3].x == 2 && perceiveRobots(ennemy) != null){
+      // only robots in orbital state can target lock an ennemy. They do it only if the target isn't already locked by
+      // another explorer
+      for (int j = 0 ; j < perceiveRobots(ennemy).size() ; j++) {
+        // we check all ennemies to see if an ally already locked them
+        if(!alreadyLocked((Robot)perceiveRobots(ennemy).get(j))) {
+          // if we find an ennemy robot that isn't locked already, we go in lock mode and save the ennemy's id and coordinates
+          brain[2].z = ((Robot)perceiveRobots(ennemy).get(j)).who;
+          brain[2].x = ((Robot)perceiveRobots(ennemy).get(j)).pos.x;
+          brain[2].y = ((Robot)perceiveRobots(ennemy).get(j)).pos.y;
+          print("zizi");
+          brain[3].x = 3;
+          break;
+        }
+      }
+    }
+    if (brain[3].x == 3) {
+      boolean found = false;
+      // lock the target if he's still there
+      if (perceiveRobots(ennemy) != null){
+        for (int j = 0 ; j < perceiveRobots(ennemy).size() ; j++) {
+          if (brain[2].z < ((Robot)perceiveRobots(ennemy).get(j)).who + 0.1 && brain[2].z > ((Robot)perceiveRobots(ennemy).get(j)).who - 0.1){
+            // if the target is still there, update the coordinates
+            brain[2].x = ((Robot)perceiveRobots(ennemy).get(j)).pos.x;
+            brain[2].y = ((Robot)perceiveRobots(ennemy).get(j)).pos.y;
+            found = true;
+            targetLock();
+            break;
+          }
+        }
+        if (!found){
+          // if we didn't find our target in the list of perceived robots, meaning he left
+          // reset brain[2] info
+          brain[2].z = 0;
+        
+          // if the target left, go back to either orbital state or "going back to orbit" state
+          if (distance(bob.pos) < 8.5 || distance(bob.pos) > 9.5){
+            brain[3].x = 0;
+          }
+          else {
+            brain[3].x = 2;
+          }
+        }
+      }
+      // if we didn't see any robots (meaning we also didn't see the one we targeted)
+      else {
+        // reset brain[2] info
+        brain[2].z = 0;
+        
+        // if the target left, go back to either orbital state or "going back to orbit" state
+        if (distance(bob.pos) < 8.5 || distance(bob.pos) > 9.5){
+          brain[3].x = 0;
+        }
+        else {
+          brain[3].x = 2;
+        }
+      }
     }
 
-
-    // tries to localize ennemy bases
-    lookForEnnemyBase();
     // inform harvesters about food sources
     driveHarvesters();
-    // inform rocket launchers about targets
-    driveRocketLaunchers();
 
     // clear the message queue
     flushMessages();
   }
 
-  void goBackToOrbit() {
-    // bob is the closest base
-    Base bob = (Base)minDist(myBases);
-    if (bob != null) {
-      // if there is one (not all of my bases have been destroyed)
-      float dist = distance(bob);
-
-      if (dist < 9 && dist > 0) {
-        // if I am not yet in orbit but inside the base radius
-        heading = -towards(bob);
-        tryToMoveForward();
-      } else if (dist == 9) {
-        // if I reached the orbit, change the state (orbital state : brain[3].x = 2)
-        brain[3].x = 2;
-      } else if (dist == 0) {
-        // if I am at the center of the base, get away
-        randomMove(180);
-      } else {
-        // if the explorer if out of the base (dist > 9)
-        heading = towards(bob);
-        tryToMoveForward();
-      }
+   //
+  // Check in nearby friendly explorers have alrady locked the robot bob
+  //
+  boolean alreadyLocked(Robot bob){
+    if (perceiveRobots(friend, EXPLORER) == null){
+      return false;
+    }
+    if (perceiveRobots(ennemy) == null){
+      print("something wrong in explorer conditions");
+      return true;
     }
     else {
-      // If there aren't any bases left
-      brain[4].z = 0;
-      brain[3].x = 0;
+      ArrayList<Robot> friendlist = perceiveRobots(friend, EXPLORER);
+      for (int i = 0 ; i < friendlist.size() ; i++){
+        // check if a friendly explorer already locked the ennemy in sight (by checking if the saved id corresponds)
+        float ennemy_id = friendlist.get(i).brain[2].z;
+        if (bob.who < ennemy_id + 0.1 && bob.who > ennemy_id -0.1){
+          print("a buddy is locking");
+          return true;
+        }
+      }
     }
+    return false;
   }
-
-  void ForwardOrStop() {
+  
+  
+  //
+  // Tries to move forward, if it's not possible, doesn't move
+  //
+  void forwardOrStop() {
     // if there is no obstacle ahead, move forward at full speed
     if (freeAhead(speed))
       forward(speed);
   }
-
-  void moveInOrbit() {
+  
+  
+  //
+  // Orbits around a point (explorer version), at a given radius. If it is not near the radius, move towards it
+  //
+  void orbitAroundPointExp(float x, float y, float radius)
+  {
+    PVector center = new PVector(x,y);
+    if (distance(center) > radius + 0.5)
+    {
+      heading = towards(center);
+      tryToMoveForward();
+    }
+    else if (distance(center) < radius - 0.5) {
+      heading = towards(center) + PI;
+      tryToMoveForward();
+    }
+    else
+    {
+      heading = towards(center);
+      right(91 - 360 * speed / (TWO_PI * radius));
+      tryToMoveForward();
+      // brain[3].x = 2 means that the explorer is in orbit, so if it was in the way back to the orbit now it's over
+      // (if the tryToMoveForward function made the explorer go out
+      // of orbit range, it will go back to it, so we don't change its state)
+      if (distance(center) > radius - 0.5 && distance(center) < radius + 0.5) {
+        brain[3].x = 2;
+      }
+    }
+  }
+  
+  
+  //
+  // Stays on the orbit but tries to be between the base and the detected ennemy (in order to guide 
+  // nearby friendly rocketlauncher)
+  // Same functionning as orbitAroundPointExp except it will either go clockwise or anti clockwise in order to go between
+  // the base and the ennemy robot
+  void targetLock(){
     Base bob = (Base)minDist(myBases);
-    heading = towards(bob) + PI/2;
-    ForwardOrStop();
+    PVector center = new PVector(bob.pos.x,bob.pos.y);
+    
+    if (distance(center) > 9.5)
+    {
+      heading = towards(center);
+      tryToMoveForward();
+    }
+    else if (distance(center) < 8.5) {
+      heading = towards(center) + PI;
+      tryToMoveForward();
+    }
+    else
+    {
+      // we will compute the angle between base-explorer and base-ennemy to see which direction should the explorer go
+      // we need first to compute the two angles relatively to the x axis (base-explorer with x axis and base ennemy with x axis)
+      // atan2 uses the center of the map so we need to do a translation
+      
+      // angle of the explorer
+      float deltaX_explo = pos.x + (width/2 - center.x);
+      float deltaY_explo = pos.y + (height/2 - center.y);
+      
+      float angle_explo = atan2(deltaX_explo, deltaY_explo);
+      
+      // angle of the ennemy
+      float deltaX_enn = brain[2].x + (width/2 - center.x);
+      float deltaY_enn = brain[2].y + (height/2 - center.y);
+      
+      float angle_enn = atan2(deltaX_enn, deltaY_enn);
+      
+      
+      heading = towards(center);
+      
+      if (angle_explo > angle_enn){
+        right(91 - 360 * speed / (TWO_PI * 9));
+        tryToMoveForward();
+      } else {
+        left(91 - 360 * speed / (TWO_PI * 9));
+        tryToMoveForward();
+      }
+      // if the explorer goes out of orbit, it loses the lock state, so we also reset its brain[2]
+      if (distance(center) < 8.5 || distance(center) > 9.5) {
+        brain[3].x = 0;
+        brain[2].z = 0;
+      }
+    }
   }
 
   void explorerBehaviorStep3()
