@@ -23,7 +23,6 @@ class RedBase extends Base {
   static final int ENNEMY_BASE_AT_XY = 14;
   static final int PLANTED_A_BURGER = 15;
   static final int TARGET_ENNEMY_AT_XY = 16;
-  static final int CURRENT_PHASE = 17;
 
   // STRATEGY PARAMETERS
   static final int KEEP_ENERGY_FOR_CREATION = 8000;
@@ -77,7 +76,7 @@ class RedBase extends Base {
     // 0:
     // 1: Step 1 specifics:  x -> burgers at home  y -> observers produced 
     // 2: Step 2 specifics: 
-    // 3: Step 3 specifics:  x -> harvesters produced   y -> observers produced 
+    // 3: Step 3 specifics:  
     // 4:
     // 5: Robot creation :  x -> Harvester   y -> Rocket Launcher   z -> Explorer
     // 6: x / y -> Coordinates of ennemy base 1   z -> do we know it yet ?
@@ -124,7 +123,7 @@ class RedBase extends Base {
       // go to step 2 if we collected enough wild burgers and we know enemy bases
       if (brain[1].x >= WILD_BURGER_TO_FARM && brain[7].z == 1)
       {
-        brain[9].x = 2;
+        brain[9].x = 3;
       } 
 
       // if we are in step 2
@@ -423,20 +422,12 @@ class RedBase extends Base {
       if ((int)random(10) <= 85)
         // creates a new rocket launcher with 90% chance
         brain[5].x++;
-      else if ((int)random(2) > 0 && brain[3].y < 10)
-      {
+      else if ((int)random(2) > 0)
         // creates a new explorer with 5% chance
         brain[5].y++;
-        brain[3].y++;
-      }
-        
-      else if (brain[3].x < 10)
-      {
+      else
         // creates a new harvester with 5% chance
         brain[5].z++;
-        brain[3].x++;
-      }
-        
     }
   }
 
@@ -452,7 +443,7 @@ class RedBase extends Base {
         launchy.brain[1].z = 0;
         launchy.brain[2].x = brain[7].x;
         launchy.brain[2].y = brain[7].y;
-        launchy.brain[2].z = 0;
+        launchy.brain[1].y = 0;
       }
     }
   }
@@ -562,7 +553,6 @@ class RedBase extends Base {
 // map of the brain:
 //   1.x / 1.y = coordinate of ennemy base 1
 //   1.z = ( 0 = No known base | 1 = 1 known base | 2 = all bases known)
-//   2.x = last time i heard about phase
 ///////////////////////////////////////////////////////////////////////////
 class RedExplorer extends Explorer {
   //
@@ -588,9 +578,6 @@ class RedExplorer extends Explorer {
   // > defines the behavior of the agent
   //
   void go() {
-
-    tellAboutCurrentPhase();
-
     switch ((int) brain[4].x)
     {
       case 0 : explorerEmergencyBehavior(); break;
@@ -598,34 +585,6 @@ class RedExplorer extends Explorer {
       case 2 : explorerBehaviorStep2(); break;
       case 3 : explorerBehaviorStep3(); break;
       default : break;	
-    }
-  }
-
-  void tellAboutCurrentPhase()
-  {
-    Message msg;
-    // for all messages
-    for (int i = messages.size()-1; i >= 0; i--) {
-      msg = messages.get(i);
-      if (msg.type == 17) {
-        if ( msg.args[1] < brain[2].x && msg.args[0] != brain[4].x)
-        {
-          brain[4].x = msg.args[0];
-          brain[2].x = 0;
-
-          ArrayList<Robot> allrobs = perceiveRobots(friend);
-          if (allrobs != null)
-          {
-            for (Robot rob : allrobs)
-            {
-              rob.brain[4].x = brain[4].x;
-            }
-          }
-        }
-        
-        messages.remove(i);
-        break;
-      }
     }
   }
 
@@ -917,7 +876,6 @@ class RedExplorer extends Explorer {
 void explorerBehaviorStep2()
   {
     Base bob = (Base)minDist(myBases);
-    driveRocketLaunchers();
 
     // if food to deposit or too few energy
     if ((carryingFood > 200) || (energy < 100))
@@ -930,7 +888,7 @@ void explorerBehaviorStep2()
       goBackToBase();
     } else if(brain[3].x == 0 || (brain[3].x == 2 && perceiveRobots(ennemy) == null)) {
       // Going back to the orbit (==0) OR moving in orbit (==2) (only if no ennemies are detected)
-      orbitAroundPointExp(bob.pos.x, bob.pos.y, 9.5);
+      orbitAroundPointExp(bob.pos.x, bob.pos.y, 9);
     } else if (brain[3].x == 2 && perceiveRobots(ennemy) != null){
       // only robots in orbital state can target lock an ennemy. They do it only if the target isn't already locked by
       // another explorer
@@ -945,9 +903,6 @@ void explorerBehaviorStep2()
           break;
         }
       }
-      // if we get there, it means that we didn't lock any target
-      orbitAroundPointExp(bob.pos.x, bob.pos.y, 9.5);
-      
     }
     if (brain[3].x == 3) {
       boolean found = false;
@@ -969,7 +924,7 @@ void explorerBehaviorStep2()
           brain[2].z = 0;
         
           // if the target left, go back to either orbital state or "going back to orbit" state
-          if (distance(bob.pos) < 9 || distance(bob.pos) > 9.9){
+          if (distance(bob.pos) < 8.5 || distance(bob.pos) > 9.5){
             brain[3].x = 0;
           }
           else {
@@ -983,7 +938,7 @@ void explorerBehaviorStep2()
         brain[2].z = 0;
         
         // if the target left, go back to either orbital state or "going back to orbit" state
-        if (distance(bob.pos) < 9 || distance(bob.pos) > 9.9){
+        if (distance(bob.pos) < 8.5 || distance(bob.pos) > 9.5){
           brain[3].x = 0;
         }
         else {
@@ -999,7 +954,7 @@ void explorerBehaviorStep2()
     flushMessages();
   }
 
-  //
+   //
   // Check in nearby friendly explorers have alrady locked the robot bob
   //
   boolean alreadyLocked(Robot bob){
@@ -1073,12 +1028,12 @@ void explorerBehaviorStep2()
     Base bob = (Base)minDist(myBases);
     PVector center = new PVector(bob.pos.x,bob.pos.y);
     
-    if (distance(center) > 9.9)
+    if (distance(center) > 9.5)
     {
       heading = towards(center);
       tryToMoveForward();
     }
-    else if (distance(center) < 9) {
+    else if (distance(center) < 8.5) {
       heading = towards(center) + PI;
       tryToMoveForward();
     }
@@ -1104,14 +1059,14 @@ void explorerBehaviorStep2()
       heading = towards(center);
       
       if (angle_explo > angle_enn){
-        right(91 - 360 * speed / (TWO_PI * 9.5));
+        right(91 - 360 * speed / (TWO_PI * 9));
         tryToMoveForward();
       } else {
-        left(91 - 360 * speed / (TWO_PI * 9.5));
+        left(91 - 360 * speed / (TWO_PI * 9));
         tryToMoveForward();
       }
       // if the explorer goes out of orbit, it loses the lock state, so we also reset its brain[2]
-      if (distance(center) < 9 || distance(center) > 9.9) {
+      if (distance(center) < 8.5 || distance(center) > 9.5) {
         brain[3].x = 0;
         brain[2].z = 0;
       }
@@ -1292,8 +1247,8 @@ void explorerBehaviorStep2()
 //
 ///////////////////////////////////////////////////////////////////////////
 // map of the brain in Step 1
-//   3.x = (0 = look for food | 1 = go back to base) 
-//   3.y = (0 = no food found | 1 = food found)
+//   4.x = (0 = look for food | 1 = go back to base) 
+//   4.y = (0 = no food found | 1 = food found)
 //   0.x / 0.y = position of the localized food
 ///////////////////////////////////////////////////////////////////////////
 class RedHarvester extends Harvester {
@@ -1792,7 +1747,7 @@ class RedRocketLauncher extends RocketLauncher {
     if (brain[3].x == 0)
     {
       // if in "go back to base" mode
-      goBackToBaseLauncher();
+      goBackToBase1();
     }
     else if (brain[3].x == 1)
     {
@@ -2166,70 +2121,6 @@ class RedRocketLauncher extends RocketLauncher {
   }
 
   //
-  // goes back to base, but launcher need bullets too so this function can also ask for bullets
-  //
-  void goBackToBaseLauncher() {
-    // look for closest base
-    Base bob = (Base)minDist(myBases);
-    if (bob != null) {
-      // if there is one, compute its distance
-      float dist = distance(bob);
-
-      if (dist <= 2) {
-        // if next to the base
-        if (energy < 500)
-          // if energy low, ask for some energy
-          askForEnergy(bob, 1500 - energy);
-
-        if (bullets == 0) {
-          askForBullets(bob, 1000);
-        }
-        // go back to "exploration" mode
-        brain[3].x = 4;
-        // make a half turn
-        right(180);
-      } else {
-        // if not next to the base, head towards it... 
-        heading = towards(bob) + random(-radians(20), radians(20));
-        // ...and try to move forward
-        tryToMoveForward1();
-      }
-    }
-  }
-
-  //
-  // same function but puts the robot in a different state at the end
-  //
-  void goBackToBaseLauncher2() {
-    // look for closest base
-    Base bob = (Base)minDist(myBases);
-    if (bob != null) {
-      // if there is one, compute its distance
-      float dist = distance(bob);
-
-      if (dist <= 2) {
-        // if next to the base
-        if (energy < 500)
-          // if energy low, ask for some energy
-          askForEnergy(bob, 1500 - energy);
-
-        if (bullets == 0) {
-          askForBullets(bob, 1000);
-        }
-        // go back to "exploration" mode
-        brain[3].x = 1;
-        // make a half turn
-        right(180);
-      } else {
-        // if not next to the base, head towards it... 
-        heading = towards(bob) + random(-radians(20), radians(20));
-        // ...and try to move forward
-        tryToMoveForward1();
-      }
-    }
-  }
-
-  //
   // tryToMoveForward
   // ================
   // > try to move forward after having checked that no obstacle is in front
@@ -2262,149 +2153,7 @@ class RedRocketLauncher extends RocketLauncher {
 
   void rocketLauncherBehaviorStep2()
   {
-    // rocket launchers have different modes of action in step 1
-    // the mode is determined by brain[3].x
-    // 0 -> refill at base mode 
-    // 1 -> staying or going in standby position
-    // 2 -> target launcher mode (without getting too far)
-    // 3 -> target harvester mode (without getting too far)
-    // 4 -> no current job mode
-
-    // the robot keeps in memory the position the base ordered
-    if (ReceivedMessageFromBase(4) != null){
-      brain[1].x = ReceivedMessageFromBase(4).x;
-      brain[1].y = ReceivedMessageFromBase(4).y;
-    }
-
-    // closest base
-    Base bob = (Base)minDist(myBases);
-
-    determineMode12();
-    if (distance(bob) > 9.5 && !(brain[3].x == 0)){
-      // no matter the action taken (except going back to base), goes to standby state if he is too far
-      brain[3].x = 1; 
-    }
-
-    if (brain[3].x == 0)
-    {
-      // if in "go back to base" mode
-      goBackToBaseLauncher2();
-    }
-    else if (brain[3].x == 1)
-    {
-      // stays around the position he stores in brain[1], or goes to it
-      goToPosition(brain[1].x,brain[1].y);
-    }
-    else if (brain[3].x == 2)
-    {
-      targetLauncher1();
-    }
-    else if (brain[3].x == 3)
-    {
-      targetHarvester1();
-    }
-    else
-    {
-      // this case isn't supposed to happen, but just in case
-      goToPosition(brain[1].x,brain[1].y);
-    }
-  }
-
-  // 
-  // check if we received a message from base
-  //
-  PVector ReceivedMessageFromBase(int type)
-  {
-    Message msg;
-    PVector msg_needed = new PVector(0.0,0.0);
-    for (int i = 0; i < messages.size(); i++) {
-      msg = messages.get(i);
-      if (msg.type == type && msg.agent == BASE) {
-        msg_needed.x = msg.args[0];
-        msg_needed.y = msg.args[1];
-        return msg_needed;
-      }
-    }
-    return null;
-  }
-
-  void determineMode12()
-  {
-    // basic state
-    brain[3].x = 1;
-    // if no energy or no bullets
-    if ((energy < 100) || (bullets == 0))
-      // go back to the base
-      brain[3].x = 0;
     
-    // if we received the order to attack a rocket launcher, target it
-    else if (hasReceivedMessage(13))
-    {
-      Message msg;
-      // for all messages
-      for (int i = messages.size()-1; i >= 0; i--) {
-        msg = messages.get(i);
-        if (msg.type == 13) {
-          // target launcher mode
-          brain[3].x = 2; 
-          // memorize target's position
-          brain[2].x = msg.args[0];  
-          brain[2].y = msg.args[1];
-          brain[2].z = LAUNCHER;
-          messages.remove(i);
-          break;
-        }
-      }
-    }
-
-    // if we see a launcher, target it
-    else if (perceiveRobots(ennemy, LAUNCHER) != null)
-    {
-      brain[3].x = 2;
-      RocketLauncher rocky = (RocketLauncher)oneOf(perceiveRobots(ennemy, LAUNCHER));
-      brain[2].x = rocky.pos.x;
-      brain[2].y = rocky.pos.y;
-      brain[2].z = LAUNCHER;
-    }
-    
-    // if we toldus about a target, target it
-    else if (hasReceivedMessage(INFORM_ABOUT_TARGET))
-    {
-      Message msg;
-      // for all messages
-      for (int i = messages.size()-1; i >= 0; i--) {
-        msg = messages.get(i);
-        if (msg.type == INFORM_ABOUT_TARGET) {
-          
-          if (msg.args[2] == LAUNCHER)
-          {
-            brain[3].x = 2; 
-            brain[2].z = LAUNCHER;
-          } 
-          else if (msg.args[2] == HARVESTER)
-          {
-            brain[3].x = 3; 
-            brain[2].z = HARVESTER;
-          }
-          // memorize target's position
-          brain[2].x = msg.args[0];  
-          brain[2].y = msg.args[1];
-          
-          messages.remove(i);
-          break;
-        }
-      }
-    }
-     
-    // if we see a harvester, target it
-    else if (perceiveRobots(ennemy, HARVESTER) != null)
-    {
-      brain[3].x = 3;
-      Harvester harvey = (Harvester)oneOf(perceiveRobots(ennemy, HARVESTER));
-      brain[2].x = harvey.pos.x;
-      brain[2].y = harvey.pos.y;
-      brain[2].z = HARVESTER;
-    }
   }
 
 
@@ -2496,15 +2245,15 @@ class RedRocketLauncher extends RocketLauncher {
   void goBackToBase3()
   {
     // look for closest base
-    Base bob = (Base)minDist(myBases);
+    Base bob = (Base)oneOf(myBases);
     if (bob != null) {
       // if there is one, compute its distance
       float dist = distance(bob);
       // if next to the base
       if (dist <= 2) {
         // if energy low, ask for some energy
-        if (energy < 4000) askForEnergy(bob, 4000);
-        if (bullets < 50) askForBullets(bob, 100 - bullets);
+        if (energy < 4000) askForEnergy(bob, 200);
+        if (bullets < 500) askForBullets(bob, 50 - bullets);
       } 
       else {
         // if not next to the base, head towards it... 
@@ -2521,15 +2270,9 @@ class RedRocketLauncher extends RocketLauncher {
     PVector targetPos = new PVector(brain[0].x, brain[0].y);
     if (brain[0].z == BASE)
     {
-      Base babe = (Base)minDist(perceiveRobots(ennemy, BASE));
-      if (babe != null)
+      if (distance(targetPos) <= detectionRange)
       {
-        if (distance(targetPos) < launcherPerception)
-        {
-          brain[1].z = 1;
-          brain[3].z = 0;
-        }
-        else brain[3].z = 1;
+        brain[3].z = 1;
       }
     }
     else
