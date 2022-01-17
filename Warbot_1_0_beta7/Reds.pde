@@ -412,7 +412,7 @@ class RedBase extends Base {
         brain[5].y++;
     }
   }
-  
+
 
   //// Step 3
   // 
@@ -587,6 +587,16 @@ class RedBase extends Base {
     if ((bullets < 10) && (energy > 1000)) newFafs(10);
   }
 
+  void manageMissiles2()
+  {
+    // poverty
+    if ((bullets < 10) && (energy > 1000)) newBullets(50);
+    // sustaining a well functionning base, being able to create one loaded robot per tick if we have the energy for it
+    if ((bullets < 1000) && (energy >= 10000)) newBullets(1000 - bullets);
+    // same with fafs
+    if ((fafs < 10) && (energy > 10000)) newFafs(10);
+  }
+
   void manageMissiles3()
   {
     if ((bullets < 50) && (energy > 2000)) newBullets(100);
@@ -602,7 +612,6 @@ class RedBase extends Base {
         launchFaf(bob);
     }
   }
-
 }
 
 ///////////////////////////////////////////////////////////////////////////
