@@ -150,6 +150,10 @@ class RedBase extends Base {
       for (Robot friend : friendlyRobots)
       {
         friend.brain[4].x = brain[9].x;
+        if (brain[9].x == 2){
+          // required initialization for step 2
+          friend.brain[3].x = 0;
+        }
       }
     }
   }
@@ -348,13 +352,24 @@ class RedBase extends Base {
   //
   void baseBehaviorStep2()
   {
+    ArrayList<Robot> launcherlist = perceiveRobots(friend,LAUNCHER);
+    ArrayList<Robot> harvesterlist = perceiveRobots(friend,HARVESTER);
+    ArrayList<Robot> explorerlist = perceiveRobots(friend,EXPLORER);
     // handle received messages 
       handleMessages();
 
       //// ROBOT CREATION
-      robotCreation();
-      
+      robotCreation2(launcherlist,harvesterlist, explorerlist);
 
+      //// Sending rocket launchers their positions
+      if (launcherlist != null){
+        for (int i = 0 ; i < launcherlist.size() ; i++){
+          float[] position = new float[2];
+          position[0] = pos.x + 8.5 * cos(radians(i * 2 * PI / launcherlist.size()));
+          position[1] = pos.y + 8.5 * sin(radians(i * 2 * PI / launcherlist.size()));
+          sendMessage(launcherlist.get(i), 4 , position);
+        }
+      }
       // creates new bullets and fafs if the stock is low and enought energy
       manageMissiles();
 
@@ -362,6 +377,42 @@ class RedBase extends Base {
       selfDefense();
   }
 
+  void robotCreation2(ArrayList<Robot> launch, ArrayList<Robot> harv, ArrayList<Robot> explo)
+  {
+    // creates new robots depending on energy and the state of brain[5]
+    if ((brain[5].x > 0) && (energy >= 1000 + harvesterCost)) {
+      // 1st priority = creates harvesters 
+      if (newHarvester())
+        brain[5].x--;
+        print("Harvester created");
+    } else if ((brain[5].y > 0) && (energy >= 1000 + launcherCost)) {
+      // 2nd priority = creates rocket launchers 
+      if (newRocketLauncher())
+        brain[5].y--;
+        print("launcher created \n");
+    } else if ((brain[5].z > 0) && (energy >= 6000 + explorerCost)) {
+      // 3rd priority = creates explorers 
+      if (newExplorer())
+        brain[5].z--;
+        print("explorer created \n");
+    } else if (energy > 10000) {
+      // if there aren't enough robots to harvest inside the base
+      if (brain[5].x == 0 && harv.size() < 6)
+        brain[5].x++;
+
+      // creates a new launcher before explorers if their number is too low (as long as one explorer is here)
+      else if (brain[5].y == 0 && launch.size() < 5 && explo.size() > 0)
+        brain[5].y++;
+      // once the minimum amount of launchers is here, we can get to a good amount of explorers
+      else if (brain[5].z == 0 && explo.size() < 4)
+        brain[5].z++;
+
+      // finally, prepare for war by stacking launchers
+      else if (brain[5].y == 0)
+        brain[5].y++;
+    }
+  }
+  
 
   //// Step 3
   // 
