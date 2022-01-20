@@ -22,14 +22,12 @@ class RedBase extends Base {
   static final int TARGET_LAUNCHER_AT_XY = 13;
   static final int ENNEMY_BASE_AT_XY = 14;
   static final int PLANTED_A_BURGER = 15;
-  static final int TARGET_ENNEMY_AT_XY = 16;
-  static final int CURRENT_PHASE = 17;
 
   // STRATEGY PARAMETERS
-  static final int KEEP_ENERGY_FOR_CREATION = 8000;
+  static final int KEEP_ENERGY_FOR_EMERGENCY = 5000;
 
   // Step 1 specifics
-  static final int WILD_BURGER_TO_FARM = 250;
+  static final int WILD_BURGER_TO_FARM = 150;
   static final int BASIC_ENERGY_NEED = 2000;
   static final int MAXIMUM_OBSERVERS = 10;
 
@@ -38,17 +36,7 @@ class RedBase extends Base {
   static final float BURGER_RATIO_FOR_BASE = 20.0/100.0;
   static final int ENERGY_FOR_ARMAGGEDON = 1000000;
   static final int LAUNCHER_FOR_ARMAGGEDON = 50;
-  
-  static final int HARVEST_STATE_BG_0 = 150;
-  static final int HARVEST_STATE_BG_1 = 1000;
-  static final int HARVEST_STATE_BG_2 = 50;
-  
-  static final int HARVEST_STATE_E_0 = 2500;
-  static final int HARVEST_STATE_E_1 = 12000;
-  static final int HARVEST_STATE_E_3 = 2500;
-  static final int HARVEST_STATE_E_4 = 1200;
-  
-  
+
   // Step 3 specifics
   static final int LAUNCHER_TO_CREATE = 100;
 
@@ -86,8 +74,8 @@ class RedBase extends Base {
     // Base brain :
     // 0:
     // 1: Step 1 specifics:  x -> burgers at home  y -> observers produced 
-    // 2: Step 2 specifics:  z -> amount of burgers + seeds
-    // 3: Step 3 specifics:  x -> harvesters produced   y -> observers produced 
+    // 2: Step 2 specifics: 
+    // 3: Step 3 specifics:  
     // 4:
     // 5: Robot creation :  x -> Harvester   y -> Rocket Launcher   z -> Explorer
     // 6: x / y -> Coordinates of ennemy base 1   z -> do we know it yet ?
@@ -122,7 +110,7 @@ class RedBase extends Base {
     ArrayList enemyRobots = perceiveRobots(ennemy, LAUNCHER);
     if (enemyRobots != null)
     {
-      //if (enemyRobots.size() >= 5) brain[9].y = 1;
+      if (enemyRobots.size() >= 5) brain[9].y = 1;
     }
 
     // if no emergency
@@ -182,9 +170,6 @@ class RedBase extends Base {
 
     // make sure all explorers know the current amount of ennemy bases known
     warnExplorersAboutEnemyBases();
-
-    // tell the harvesters if there are burgers to get
-    warnHarvestersAboutBurgers();
 
     //// ROBOT CREATION
     robotCreationStep1();
@@ -284,21 +269,6 @@ class RedBase extends Base {
     }
   }
 
-  void warnHarvestersAboutBurgers()
-  {
-    Burger zorg = (Burger)oneOf(perceiveBurgers());
-    if (zorg != null) {
-      ArrayList<Harvester> harvesters = perceiveRobots(friend, HARVESTER);
-      if (harvesters != null)
-      {
-        for (Harvester harvey : harvesters)
-        {
-          informAboutFood(harvey, zorg.pos);
-        }
-      }
-    }
-  }
-
   //// ROBOT CREATION ////
   //
   // During Step 1 the priority of robot creation is rocket launchers
@@ -323,11 +293,11 @@ class RedBase extends Base {
     }
 
     // creates new robots depending on energy and the state of brain[5]
-    if ((brain[5].y > 0) && (energy >= KEEP_ENERGY_FOR_CREATION + launcherCost)) {
+    if ((brain[5].y > 0) && (energy >= KEEP_ENERGY_FOR_EMERGENCY + launcherCost)) {
       // 1st priority = creates rocket launchers 
       if (newRocketLauncher()) brain[5].y--;
     } 
-    else if ((brain[5].z > 0) && (energy >= KEEP_ENERGY_FOR_CREATION + explorerCost)) {
+    else if ((brain[5].z > 0) && (energy >= KEEP_ENERGY_FOR_EMERGENCY + explorerCost)) {
       // 2nd priority = creates explorers creates rocket launchers 
       if (newExplorer())
       {
@@ -335,11 +305,11 @@ class RedBase extends Base {
         brain[1].y++;
       } 
     } 
-    else if ((brain[5].x > 0) && (energy >= KEEP_ENERGY_FOR_CREATION + harvesterCost)) {
+    else if ((brain[5].x > 0) && (energy >= KEEP_ENERGY_FOR_EMERGENCY + harvesterCost)) {
       // 3rd priority = creates harvesters 
       if (newHarvester()) brain[5].x--;
     } 
-    else if (energy > KEEP_ENERGY_FOR_CREATION) {
+    else if (energy > KEEP_ENERGY_FOR_EMERGENCY) {
       // if no robot in the pipe and enough energy 
       if ((int)random(10) >= 3)
         // creates a new harvester with 70% chance
@@ -365,140 +335,26 @@ class RedBase extends Base {
     ArrayList<Robot> launcherlist = perceiveRobots(friend,LAUNCHER);
     ArrayList<Robot> harvesterlist = perceiveRobots(friend,HARVESTER);
     ArrayList<Robot> explorerlist = perceiveRobots(friend,EXPLORER);
-    ArrayList<Burger> burgerlist = perceiveBurgers();
-    ArrayList<Seed> seedlist = perceiveSeeds(friend);
-    
-    float nb_burger;
-    if (burgerlist == null){
-      nb_burger = 0;
-    }
-    else { nb_burger = burgerlist.size();}
-    
-    float nb_seed;
-    if (seedlist == null){
-      nb_seed = 0;
-    }
-    else { nb_seed = seedlist.size();}
-      
-    // we save the amount of burger + seeds
-    float BG = nb_burger + nb_seed;
-    brain[2].z = BG;
     // handle received messages 
-    handleMessages();
-    //// ROBOT CREATION
-    robotCreation2(launcherlist,harvesterlist, explorerlist);
-    
-    //// Sending rocket launchers their positions
-    if (launcherlist != null){
-      for (int i = 0 ; i < launcherlist.size() ; i++){
-        float[] position = new float[2];
-        position[0] = pos.x + 8.5 * cos(radians(i * 2 * PI / launcherlist.size()));
-        position[1] = pos.y + 8.5 * sin(radians(i * 2 * PI / launcherlist.size()));
-        sendMessage(launcherlist.get(i), 4 , position);
-      }
-    }
-    
-    
-    // Finding the harvest state
-    float harvest = 0;
-    if (energy < HARVEST_STATE_E_4){
-      // emergency (top priority)
-      harvest = 4;
-    }
-    else {
-      if (BG < HARVEST_STATE_BG_2){
-        // if there are no burgers to harvest, save the production by planting seeds with what they have (high priority)
-        harvest = 2;
-      }
-      else {
-        if (energy < HARVEST_STATE_E_3){
-          // situation is bad but not in emergency state (saving state)
-          harvest = 3;
-        }
-        else if (energy < HARVEST_STATE_E_1){
-          // energy is too high for saving state but too low for powerful state
-          if  (BG < HARVEST_STATE_BG_0){
-            // enough energy but not enough burgers to go in basic harvest
-            harvest = 3;
-          }
-          else {
-            // enough energy and burgers to go in basic harvest
-            harvest = 0;
-          }
-        }
-        else if (energy >= HARVEST_STATE_E_1){
-          // energy is high enough for powerful state
-          if  (BG < HARVEST_STATE_BG_1){
-            // enough energy but not enough burgers to go in powerful harvest
-            harvest = 0;
-          }
-          else {
-            // enough energy and burgers to go in powerful harvest
-            harvest = 1;
-          }
+      handleMessages();
+
+      //// ROBOT CREATION
+      robotCreation2(launcherlist,harvesterlist, explorerlist);
+      
+      //// Sending rocket launchers their positions
+      if (launcherlist != null){
+        for (int i = 0 ; i < launcherlist.size() ; i++){
+          float[] position = new float[2];
+          position[0] = pos.x + 8.5 * cos(radians(i * 2 * PI / launcherlist.size()));
+          position[1] = pos.y + 8.5 * sin(radians(i * 2 * PI / launcherlist.size()));
+          sendMessage(launcherlist.get(i), 4 , position);
         }
       }
-    }
-    
-    
-    //// Sending harvester the harvest state
-    if (harvesterlist != null){
-      float[] harvest_state = new float[1];
-      harvest_state[0] = harvest;
-      for (int i = 0 ; i < harvesterlist.size() ; i++){
-        sendMessage(harvesterlist.get(i), 0 , harvest_state);
-      }
-    }
-    // creates new bullets and fafs if the stock is low and enought energy
-    manageMissiles();
-    
-    // Send her harvest state to the harvester, to tell them how to harvest
+      // creates new bullets and fafs if the stock is low and enought energy
+      manageMissiles();
 
-    // if ennemy rocket launcher in the area of perception
-    selfDefense();
-  }
-
-  void robotCreation2(ArrayList<Robot> launch, ArrayList<Robot> harv, ArrayList<Robot> explo)
-  {
-    if (launch == null)
-      launch = new ArrayList<Robot>();
-    if (harv == null)
-      harv = new ArrayList<Robot>();
-    if(explo == null)
-      explo = new ArrayList<Robot>();
-    
-    // creates new robots depending on energy and the state of brain[5]
-    if ((brain[5].x > 0) && (energy >= 2000 + harvesterCost)) {
-      // 1st priority = creates harvesters 
-      if (newHarvester())
-        brain[5].x--;
-        print("Harvester created");
-    } else if ((brain[5].y > 0) && (energy >= 2000 + launcherCost)) {
-      // 2nd priority = creates rocket launchers 
-      if (newRocketLauncher())
-        brain[5].y--;
-        print("launcher created \n");
-    } else if ((brain[5].z > 0) && (energy >= 7000 + explorerCost)) {
-      // 3rd priority = creates explorers 
-      if (newExplorer())
-        brain[5].z--;
-        print("explorer created \n");
-    } else if (energy > 10000 || (harv.size() == 0)) {
-      // if there aren't enough robots to harvest inside the base
-      if (brain[5].x == 0 && harv.size() < 6)
-        brain[5].x++;
-
-      // creates a new launcher before explorers if their number is too low (as long as one explorer is here)
-      else if (brain[5].y == 0 && launch.size() < 5 && explo.size() > 0)
-        brain[5].y++;
-      // once the minimum amount of launchers is here, we can get to a good amount of explorers
-      else if (brain[5].z == 0 && explo.size() < 4)
-        brain[5].z++;
-
-      // finally, prepare for war by stacking launchers
-      else if (brain[5].y == 0)
-        brain[5].y++;
-    }
+      // if ennemy rocket launcher in the area of perception
+      selfDefense();
   }
 
 
@@ -510,90 +366,18 @@ class RedBase extends Base {
   //
   void baseBehaviorStep3()
   {
-      // handle received messages 
+    // handle received messages 
       handleMessages();
 
-      // tell the harvesters if there are burgers to get
-      warnHarvestersAboutBurgers();
-
-      // tell the rocket launchers about the base
-      tellLaunchersAboutBase();
-
       //// ROBOT CREATION
-      robotCreationStep3();
+      robotCreation();
+      
 
       // creates new bullets and fafs if the stock is low and enought energy
-      manageMissiles3();
+      manageMissiles();
 
       // if ennemy rocket launcher in the area of perception
       selfDefense();
-  }
-
-  //// ROBOT CREATION ////
-  //
-  // During Step 1 the priority of robot creation is rocket launchers
-  // (if there is a need), then explorers and finally harvesters
-  //
-  // Rocket launchers are only created if there is no rocket launcher already to defend the base
-  // and there is an ennemy rocket launcher attacking, or at a rate of 10%
-  // 
-  // Explorers are created in number at the begining and then at a rate of 20%
-  //
-  // Harvesters are created at a rate of 70%
-
-  void robotCreationStep3()
-  {
-    
-    // creates new robots depending on energy and the state of brain[5]
-    if ((brain[5].y > 0) && (energy >= KEEP_ENERGY_FOR_CREATION + launcherCost)) {
-      // 1st priority = creates rocket launchers 
-      if (newRocketLauncher()) brain[5].y--;
-    } 
-    else if ((brain[5].z > 0) && (energy >= KEEP_ENERGY_FOR_CREATION + explorerCost)) {
-      // 2nd priority = creates explorers creates rocket launchers 
-      if (newExplorer()) brain[5].z--;
-    } 
-    else if ((brain[5].x > 0) && (energy >= KEEP_ENERGY_FOR_CREATION + harvesterCost)) {
-      // 3rd priority = creates harvesters 
-      if (newHarvester()) brain[5].x--;
-    } 
-    else if (energy > KEEP_ENERGY_FOR_CREATION) {
-      // if no robot in the pipe and enough energy 
-      if ((int)random(10) <= 85)
-        // creates a new rocket launcher with 90% chance
-        brain[5].x++;
-      else if ((int)random(2) > 0 && brain[3].y < 10)
-      {
-        // creates a new explorer with 5% chance
-        brain[5].y++;
-        brain[3].y++;
-      }
-        
-      else if (brain[3].x < 10)
-      {
-        // creates a new harvester with 5% chance
-        brain[5].z++;
-        brain[3].x++;
-      }
-        
-    }
-  }
-
-  void tellLaunchersAboutBase()
-  {
-    ArrayList<RocketLauncher> friendlyLaunchers = perceiveRobots(friend, LAUNCHER);
-    if (friendlyLaunchers != null)
-    {
-      for (RocketLauncher launchy : friendlyLaunchers)
-      {
-        launchy.brain[1].x = brain[6].x;
-        launchy.brain[1].y = brain[6].y;
-        launchy.brain[1].z = 0;
-        launchy.brain[2].x = brain[7].x;
-        launchy.brain[2].y = brain[7].y;
-        launchy.brain[2].z = 0;
-      }
-    }
   }
 
   void baseEmergencyBehavior()
@@ -669,12 +453,48 @@ class RedBase extends Base {
     }
   }
 
+void robotCreation2(ArrayList<Robot> launch, ArrayList<Robot> harv, ArrayList<Robot> explo)
+  {
+    // creates new robots depending on energy and the state of brain[5]
+    if ((brain[5].x > 0) && (energy >= 1000 + harvesterCost)) {
+      // 1st priority = creates harvesters 
+      if (newHarvester())
+        brain[5].x--;
+        print("Harvester created");
+    } else if ((brain[5].y > 0) && (energy >= 1000 + launcherCost)) {
+      // 2nd priority = creates rocket launchers 
+      if (newRocketLauncher())
+        brain[5].y--;
+        print("launcher created \n");
+    } else if ((brain[5].z > 0) && (energy >= 6000 + explorerCost)) {
+      // 3rd priority = creates explorers 
+      if (newExplorer())
+        brain[5].z--;
+        print("explorer created \n");
+    } else if (energy > 10000) {
+      // if there aren't enough robots to harvest inside the base
+      if (brain[5].x == 0 && harv.size() < 6)
+        brain[5].x++;
+        
+      // creates a new launcher before explorers if their number is too low (as long as one explorer is here)
+      else if (brain[5].y == 0 && launch.size() < 5 && explo.size() > 0)
+        brain[5].y++;
+      // once the minimum amount of launchers is here, we can get to a good amount of explorers
+      else if (brain[5].z == 0 && explo.size() < 4)
+        brain[5].z++;
+        
+      // finally, prepare for war by stacking launchers
+      else if (brain[5].y == 0)
+        brain[5].y++;
+    }
+  }
+
   void manageMissiles()
   {
     if ((bullets < 10) && (energy > 1000)) newBullets(50);
     if ((bullets < 10) && (energy > 1000)) newFafs(10);
   }
-
+  
   void manageMissiles2()
   {
     // poverty
@@ -683,11 +503,6 @@ class RedBase extends Base {
     if ((bullets < 1000) && (energy >= 10000)) newBullets(1000 - bullets);
     // same with fafs
     if ((fafs < 10) && (energy > 10000)) newFafs(10);
-  }
-
-  void manageMissiles3()
-  {
-    if ((bullets < 50) && (energy > 2000)) newBullets(100);
   }
 
   void selfDefense()
@@ -700,6 +515,7 @@ class RedBase extends Base {
         launchFaf(bob);
     }
   }
+
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -710,7 +526,6 @@ class RedBase extends Base {
 // map of the brain:
 //   1.x / 1.y = coordinate of ennemy base 1
 //   1.z = ( 0 = No known base | 1 = 1 known base | 2 = all bases known)
-//   2.x = last time i heard about phase
 ///////////////////////////////////////////////////////////////////////////
 class RedExplorer extends Explorer {
   //
@@ -736,9 +551,6 @@ class RedExplorer extends Explorer {
   // > defines the behavior of the agent
   //
   void go() {
-
-    tellAboutCurrentPhase();
-
     switch ((int) brain[4].x)
     {
       case 0 : explorerEmergencyBehavior(); break;
@@ -746,34 +558,6 @@ class RedExplorer extends Explorer {
       case 2 : explorerBehaviorStep2(); break;
       case 3 : explorerBehaviorStep3(); break;
       default : break;	
-    }
-  }
-
-  void tellAboutCurrentPhase()
-  {
-    Message msg;
-    // for all messages
-    for (int i = messages.size()-1; i >= 0; i--) {
-      msg = messages.get(i);
-      if (msg.type == 17) {
-        if ( msg.args[1] < brain[2].x && msg.args[0] != brain[4].x)
-        {
-          brain[4].x = msg.args[0];
-          brain[2].x = 0;
-
-          ArrayList<Robot> allrobs = perceiveRobots(friend);
-          if (allrobs != null)
-          {
-            for (Robot rob : allrobs)
-            {
-              rob.brain[4].x = brain[4].x;
-            }
-          }
-        }
-        
-        messages.remove(i);
-        break;
-      }
     }
   }
 
@@ -1439,9 +1223,9 @@ void explorerBehaviorStep2()
 // The code for the green harvesters
 //
 ///////////////////////////////////////////////////////////////////////////
-// map of the brain in Step 1
-//   3.x = (0 = look for food | 1 = go back to base) 
-//   3.y = (0 = no food found | 1 = food found)
+// map of the brain:
+//   4.x = (0 = look for food | 1 = go back to base) 
+//   4.y = (0 = no food found | 1 = food found)
 //   0.x / 0.y = position of the localized food
 ///////////////////////////////////////////////////////////////////////////
 class RedHarvester extends Harvester {
@@ -1525,7 +1309,7 @@ class RedHarvester extends Harvester {
     if (bob != null)
     {
       //if the base has enough energy, plant seeds
-      if (bob.energy > RedBase.BASIC_ENERGY_NEED && distance(bob) > 2)
+      if (bob.energy > RedBase.KEEP_ENERGY_FOR_EMERGENCY +  RedBase.BASIC_ENERGY_NEED && distance(bob) > 2)
       {
         if (carryingFood > 100)
         {
@@ -1543,11 +1327,15 @@ class RedHarvester extends Harvester {
       else
       {
         if (distance(bob) <= 2) {
+          // if next to the base, gives the food to the base
+          giveFood(bob, carryingFood);
           if (energy < 500)
             // ask for energy if it lacks some
             askForEnergy(bob, 1500 - energy);
           // go back to "explore and collect" mode
           brain[3].x = 0;
+          // make a half turn
+          right(180);
         } 
         else
         {
@@ -1561,84 +1349,41 @@ class RedHarvester extends Harvester {
     else brain[3].x = 0;
   }
 
-  // brain[2].x will indicate the state of the base regarding her need of burgers. The base fills this piece of information through messages
   void harvesterBehaviorStep2()
   {
-    // handle messages received
-    handleMessages2();
-    
-    // nearest base
     Base bob = (Base)minDist(myBases);
-    
-    
+    // handle messages received
+    handleMessages();
+
     // check for the closest burger
     Burger b = (Burger)minDist(perceiveBurgers());
     if ((b != null) && (distance(b) <= 2))
       // if one is found next to the robot, collect it
       takeFood(b);
-    
-    float food_to_keep = 0.0;
-    
-    // if the harvester is out of the perception range of his nearest base (and inside the rocket launcher orbit),
-    // goes back to the base
-    if (bob != null) {
-      float d = distance(bob);
-      if (d > 8.3)
-      // time to go back to the base
-        brain[3].x = 1;
-    
-    
-      // bringing back burgers in first state of base
-      if ((carryingFood > 200) && brain[2].x == 0 && d > 2){
-        // time to go back to the base
-        brain[3].x = 1;
-        food_to_keep = 100;
-      }
-      
-      // bringing back burgers in second state of base
-      if ((carryingFood > 500) && brain[2].x == 1 && d > 2){
-        // time to go back to the base
-        brain[3].x = 1;
-        food_to_keep = 200;
-      }
-      // bringing back burgers in fourth state of base (there is no going back in third state)
-      if ((carryingFood > 100) && brain[2].x == 3 && d > 2){
-        // time to go back to the base
-        brain[3].x = 1;
-        food_to_keep = 100;
-      }
 
-      // bringing back burgers in fifth state of base (emergency)
-      if (brain[2].x == 3){
-        // time to go back to the base
-        brain[3].x = 1;
-        food_to_keep = carryingFood;
-      }
-      
-      if (energy < 100){
-        // in case of need of energy
-        brain[3].x = 1;
-        food_to_keep = carryingFood;
-      }
-    }
+    // if food to deposit or too few energy
+    if ((carryingFood > 200) || (energy < 100))
+      // time to go back to the base
+      brain[3].x = 1;
+
     // if in "go back" state
-    if (brain[3].x == 1) 
-    {
+    if (brain[3].x == 1) {
       // go back to the base
-      goBackToBaseWeirdly(food_to_keep);
+      goBackToBase();
 
       // if enough energy and food
-      if ((energy > 100) && carryingFood > food_to_keep + seedCost) {
+      if ((energy > 100) && (carryingFood > 100)) {
+        // check for closest base
         if (bob != null) {
           // if there is one and the harvester is in the sphere of perception of the base
-          if (distance(bob) < 9.1)
+          if (distance(bob) < basePerception)
             // plant one burger as a seed to produce new ones
             plantSeed();
         }
       }
     } else
       // if not in the "go back" state, explore and collect food
-      goAndEat2();
+      goAndEat();
   }
 
 
@@ -1659,81 +1404,24 @@ class RedHarvester extends Harvester {
       brain[3].x = 1;
 
     // if in "go back" state
-    if (brain[3].x == 1) 
-    {
+    if (brain[3].x == 1) {
       // go back to the base
       goBackToBase();
 
       // if enough energy and food
-      if ((energy > 100) && (carryingFood > 100)) 
-      {
+      if ((energy > 100) && (carryingFood > 100)) {
         // check for closest base
         Base bob = (Base)minDist(myBases);
-        if (bob != null) 
-        {
+        if (bob != null) {
           // if there is one and the harvester is in the sphere of perception of the base
           if (distance(bob) < basePerception)
             // plant one burger as a seed to produce new ones
             plantSeed();
         }
       }
-    }
-    else 
-    {
-      goAndEat3();
-    }
-  }
-
-  void goAndEat3()
-  {
-    // look for the closest wall
-    Wall wally = (Wall)minDist(perceiveWalls());
-    // look for the closest base
-    Base bob = (Base)minDist(myBases);
-    if (bob != null) {
-      float dist = distance(bob);
-      // if wall seen and not at the limit of perception of the base 
-      if ((wally != null) && ((dist < basePerception - 1) || (dist > basePerception + 2)))
-        // tries to collect the wall
-        takeWall(wally);
-    }
-
-    // look for the closest burger
-    Burger zorg = (Burger)minDist(perceiveBurgers());
-    if (zorg != null) {
-      // if there is one
-      if (distance(zorg) <= 2)
-        // if next to it, collect it
-        takeFood(zorg);
-      else {
-        // if away from the burger, head towards it...
-        heading = towards(zorg) + random(-radians(20), radians(20));
-        // ...and try to move forward
-        tryToMoveForward();
-      }
-    } 
-    else if (brain[3].y == 1) 
-    {
-      // if no burger seen but food localized (thank's to a message received)
-      if (distance(brain[0]) > 2) 
-      {
-        // head towards localized food...
-        heading = towards(brain[0]);
-        // ...and try to move forward
-        tryToMoveForward();
-      } 
-      // if the food is reached, clear the corresponding flag
-      else brain[3].y = 0;
-    } 
-    else 
-    {
-      bob = (Base)minDist(myBases);
-      if (bob != null) {
-        if (distance(bob) > basePerception) heading = towards(bob);
-      }
-      else heading += random(-radians(45), radians(45));
-      tryToMoveForward();
-    }
+    } else
+      // if not in the "go back" state, explore and collect food
+      goAndEat();
   }
 
   void harvesterEmergencyBehavior()
@@ -1798,41 +1486,7 @@ class RedHarvester extends Harvester {
       }
     }
   }
-  
-  
-  
-  
-//
-  // goBackToBaseWeirdly
-  // ============
-  // > go back to the closest friend base
-  //
-  void goBackToBaseWeirdly(float food_kept) {
-    // look for the closest base
-    Base bob = (Base)minDist(myBases);
-    if (bob != null) {
-      // if there is one
-      float dist = distance(bob);
-      if (dist <= 2) {
-        // if next to the base, gives the food to the base
-        giveFood(bob, food_kept);
-        if (energy < 500)
-          // ask for energy if it lacks some
-          askForEnergy(bob, 1500 - energy);
-        // go back to "explore and collect" mode
-        brain[3].x = 0;
-        // make a half turn
-        right(180);
-      } 
-      else {
-        // if still away from the base
-        // head towards the base (with some variations)...
-        heading = towards(bob) + random(-radians(35), radians(35));
-        // ...and try to move forward
-        tryToMoveForward();
-      }
-    }
-  }
+
   //
   // goAndEat
   // ========
@@ -1863,54 +1517,6 @@ class RedHarvester extends Harvester {
         heading = towards(zorg) + random(-radians(20), radians(20));
         // ...and try to move forward
         tryToMoveForward();
-      }
-    } else if (brain[3].y == 1) {
-      // if no burger seen but food localized (thank's to a message received)
-      if (distance(brain[0]) > 2) {
-        // head towards localized food...
-        heading = towards(brain[0]);
-        // ...and try to move forward
-        tryToMoveForward();
-      } else
-        // if the food is reached, clear the corresponding flag
-        brain[3].y = 0;
-    } else {
-      // if no food seen and no food localized, explore randomly
-      heading += random(-radians(45), radians(45));
-      tryToMoveForward();
-    }
-  }
-  
-  //
-  // goAndEat2
-  // ========
-  // > go explore and collect food but stays in a radius around the base
-  //
-  void goAndEat2() {
-    // look for the closest base
-    Base bob = (Base)minDist(myBases);
-    if (bob != null) {
-      float dist = distance(bob);
-    }
-
-    // look for the closest burger
-    Burger zorg = (Burger)minDist(perceiveBurgers());
-    if (zorg != null) {
-      // if there is one
-      if (distance(zorg) <= 2)
-        // if next to it, collect it
-        takeFood(zorg);
-      else {
-        if ( game.distance(zorg,bob) < 9.5){
-          // if away from the burger, head towards it...
-          heading = towards(zorg);
-          // ...and try to move forward
-          tryToMoveForward();
-        }
-        else {
-          heading += random(-radians(45), radians(45));
-          randomMove(heading);
-        }
       }
     } else if (brain[3].y == 1) {
       // if no burger seen but food localized (thank's to a message received)
@@ -1979,45 +1585,6 @@ class RedHarvester extends Harvester {
     // clear the message queue
     flushMessages();
   }
-  
-  //
-  // handleMessages2
-  // ==============
-  // > handle messages received
-  // > identify the closest localized burger, and receives harvest_state from base
-  //
-  void handleMessages2() {
-    float d = width;
-    PVector p = new PVector();
-
-    Message msg;
-    // for all messages
-    for (int i=0; i<messages.size(); i++) {
-      // get next message
-      msg = messages.get(i);
-      // if "localized food" message
-      if (msg.type == INFORM_ABOUT_FOOD) {
-        // record the position of the burger
-        p.x = msg.args[0];
-        p.y = msg.args[1];
-        if (distance(p) < d) {
-          // if burger closer than closest burger
-          // record the position in the brain
-          brain[0].x = p.x;
-          brain[0].y = p.y;
-          // update the distance of the closest burger
-          d = distance(p);
-          // update the corresponding flag
-          brain[3].y = 1;
-        }
-      }
-      if (msg.type == 0 && msg.agent == BASE){
-        brain[2].x = msg.args[0];
-      }
-    }
-    // clear the message queue
-    flushMessages();
-  }
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -2025,7 +1592,7 @@ class RedHarvester extends Harvester {
 // The code for the green rocket launchers
 //
 ///////////////////////////////////////////////////////////////////////////
-// map of the brain in step 1
+// map of the brain:
 //   0.x / 0.y = actual position of the target
 //   0.z = target locked ? (0 = false, 1 = true)
 //   2.x / 2.y = estimated position of the target
@@ -2033,14 +1600,6 @@ class RedHarvester extends Harvester {
 //   3.x = current mode
 //   4.x = current step
 //   4.y = (0 = no target | 1 = localized target)
-///////////////////////////////////////////////////////////////////////////
-// map of the brain in step 3
-//   0.x / 0.y = position of the target
-//   0.z = target breed
-//   1.x / 1.y = position of base 1   1.z = base destroyed ?
-//   2.x / 2.y = position of base 2   2.z = base destroyed ?
-//   3.x = current mode   3.z = target lock
-//   4.x = current step
 ///////////////////////////////////////////////////////////////////////////
 class RedRocketLauncher extends RocketLauncher {
   //
@@ -2165,7 +1724,7 @@ class RedRocketLauncher extends RocketLauncher {
       brain[2].z = LAUNCHER;
     }
     
-    // if we told us about a target, target it
+    // if we toldus about a target, target it
     else if (hasReceivedMessage(INFORM_ABOUT_TARGET))
     {
       Message msg;
@@ -2385,7 +1944,7 @@ class RedRocketLauncher extends RocketLauncher {
     else
     {
       heading = towards(center);
-      right(91 - 360 * launcherSpeed / (TWO_PI * radius));
+      right(90 - 360 * launcherSpeed / (TWO_PI * radius));
       tryToMoveForward1();
     }
   }
@@ -2412,70 +1971,8 @@ class RedRocketLauncher extends RocketLauncher {
     }
     return true;
   }
-
-  //
-  // selectTarget
-  // ============
-  // > try to localize a target
-  //
-  void selectTarget() {
-    // look for the closest ennemy robot
-    Robot bob = (Robot)minDist(perceiveRobots(ennemy));
-    if (bob != null) {
-      // if one found, record the position and breed of the target
-      brain[0].x = bob.pos.x;
-      brain[0].y = bob.pos.y;
-      brain[0].z = bob.breed;
-      // locks the target
-      brain[3].y = 1;
-    } else
-      // no target found
-      brain[3].y = 0;
-  }
-
-  //
-  // target
-  // ======
-  // > checks if a target has been locked
-  //
-  // output
-  // ------
-  // > true if target locket / false if not
-  //
-  boolean target() {
-    return (brain[3].y == 1);
-  }
-
-  //
-  // goBackToBase
-  // ============
-  // > go back to the closest base
-  //
-  void goBackToBase1() {
-    // look for closest base
-    Base bob = (Base)minDist(myBases);
-    if (bob != null) {
-      // if there is one, compute its distance
-      float dist = distance(bob);
-
-      if (dist <= 2) {
-        // if next to the base
-        if (energy < 500)
-          // if energy low, ask for some energy
-          askForEnergy(bob, 1500 - energy);
-        // go back to "exploration" mode
-        brain[3].x = 4;
-        // make a half turn
-        right(180);
-      } else {
-        // if not next to the base, head towards it... 
-        heading = towards(bob) + random(-radians(20), radians(20));
-        // ...and try to move forward
-        tryToMoveForward1();
-      }
-    }
-  }
-
+  
+  
   //
   // goes back to base, but launcher need bullets too so this function can also ask for bullets
   //
@@ -2491,7 +1988,7 @@ class RedRocketLauncher extends RocketLauncher {
         if (energy < 500)
           // if energy low, ask for some energy
           askForEnergy(bob, 1500 - energy);
-
+        
         if (bullets == 0) {
           askForBullets(bob, 1000);
         }
@@ -2523,7 +2020,7 @@ class RedRocketLauncher extends RocketLauncher {
         if (energy < 500)
           // if energy low, ask for some energy
           askForEnergy(bob, 1500 - energy);
-
+        
         if (bullets == 0) {
           askForBullets(bob, 1000);
         }
@@ -2539,38 +2036,7 @@ class RedRocketLauncher extends RocketLauncher {
       }
     }
   }
-
-  //
-  // tryToMoveForward
-  // ================
-  // > try to move forward after having checked that no obstacle is in front
-  //
-  void tryToMoveForward() {
-    // if there is an obstacle ahead, rotate randomly
-    if (!freeAhead(speed))
-      right(random(360));
-
-    // if there is no obstacle ahead, move forward at full speed
-    if (freeAhead(speed))
-      forward(speed);
-  }
-
-  //
-  // tryToMoveForward
-  // ================
-  // > try to move forward after having checked that no obstacle is in front
-  //
-  void tryToMoveForward1() {
-    // if there is an obstacle ahead, rotate randomly
-    if (!freeAhead(speed))
-    {
-      right(random(360));
-    }
-    // if there is no obstacle ahead, move forward at full speed
-    if (freeAhead(speed))
-      forward(speed);
-  }
-
+  
   void rocketLauncherBehaviorStep2()
   {
     // rocket launchers have different modes of action in step 1
@@ -2580,22 +2046,22 @@ class RedRocketLauncher extends RocketLauncher {
     // 2 -> target launcher mode (without getting too far)
     // 3 -> target harvester mode (without getting too far)
     // 4 -> no current job mode
-
+    
     // the robot keeps in memory the position the base ordered
     if (ReceivedMessageFromBase(4) != null){
       brain[1].x = ReceivedMessageFromBase(4).x;
       brain[1].y = ReceivedMessageFromBase(4).y;
     }
-
+    
     // closest base
     Base bob = (Base)minDist(myBases);
-
+    
     determineMode12();
     if (distance(bob) > 9.5 && !(brain[3].x == 0)){
       // no matter the action taken (except going back to base), goes to standby state if he is too far
       brain[3].x = 1; 
     }
-
+    
     if (brain[3].x == 0)
     {
       // if in "go back to base" mode
@@ -2620,7 +2086,7 @@ class RedRocketLauncher extends RocketLauncher {
       goToPosition(brain[1].x,brain[1].y);
     }
   }
-
+  
   // 
   // check if we received a message from base
   //
@@ -2638,6 +2104,8 @@ class RedRocketLauncher extends RocketLauncher {
     }
     return null;
   }
+
+  
 
   void determineMode12()
   {
@@ -2719,156 +2187,109 @@ class RedRocketLauncher extends RocketLauncher {
   }
 
 
+
   void rocketLauncherBehaviorStep3()
   {
-    // rocket launchers have different modes of action in step 3
-    // the mode is determined by brain[3].x
-    // 0 -> refill at base mode 
-    // 1 -> fire at target mode
-
-    determineMode3();
-
-    if (brain[3].x == 0)
-    {
-      // if in "go back to base" mode
-      goBackToBase3();
-    }
-    else if (brain[3].x == 1)
-    {
-      choseTarget3();
-      fireAtTarget3();
-    }
-    else
-    {
-      // else explore randomly
-      heading += random(-radians(45), radians(45));
-      tryToMoveForward();
-    }
-  }
-
-  void determineMode3()
-  {
-    if (bullets == 0 || energy < 150)
-    {
-      brain[3].x = 0;
-    }
-    else brain[3].x = 1;
-  }
-  void choseTarget3()
-  {
-    if (hasReceivedMessage(13))
-    {
-      Message msg;
-      // for all messages
-      for (int i = messages.size()-1; i >= 0; i--) {
-        msg = messages.get(i);
-        if (msg.type == 13) {
-          // memorize target's position
-          brain[0].x = msg.args[0];  
-          brain[0].y = msg.args[1];
-          brain[0].z = LAUNCHER;
-          brain[3].z = 0;
-          messages.remove(i);
-          break;
-        }
-      }
-    }
-
-    // if we see a launcher, target it
-    else if (perceiveRobots(ennemy, LAUNCHER) != null )
-    {
-      RocketLauncher rocky = (RocketLauncher)oneOf(perceiveRobots(ennemy, LAUNCHER));
-      brain[0].x = rocky.pos.x;
-      brain[0].y = rocky.pos.y;
-      brain[0].z = LAUNCHER;
-      brain[3].z = 0;
-    }
-
-    // else target a base
-    else
-    {
-      // if the 1st base is still alive
-      if (brain[1].z == 0)
-      {
-        brain[0].x = brain[1].x;
-        brain[0].y = brain[1].y;
-        brain[0].z = BASE;
-        brain[3].z = 0;
-      }
-      else if (brain[2].z == 0)
-      {
-        brain[0].x = brain[2].x;
-        brain[0].y = brain[2].y;
-        brain[0].z = BASE;
-        brain[3].z = 0;
-      }
-    }
-  }
-  void goBackToBase3()
-  {
-    // look for closest base
-    Base bob = (Base)minDist(myBases);
-    if (bob != null) {
-      // if there is one, compute its distance
-      float dist = distance(bob);
-      // if next to the base
-      if (dist <= 2) {
-        // if energy low, ask for some energy
-        if (energy < 4000) askForEnergy(bob, 4000);
-        if (bullets < 50) askForBullets(bob, 100 - bullets);
-      } 
-      else {
-        // if not next to the base, head towards it... 
-        heading = towards(bob) + random(-radians(20), radians(20));
-        // ...and try to move forward
-        tryToMoveForward();
-      }
-    }
-  }
-
-  void fireAtTarget3()
-  {
-
-    PVector targetPos = new PVector(brain[0].x, brain[0].y);
-    if (brain[0].z == BASE)
-    {
-      Base babe = (Base)minDist(perceiveRobots(ennemy, BASE));
-      if (babe != null)
-      {
-        if (distance(targetPos) < launcherPerception)
-        {
-          brain[1].z = 1;
-          brain[3].z = 0;
-        }
-        else brain[3].z = 1;
-      }
-    }
-    else
-    {
-      RocketLauncher ly = (RocketLauncher)minDist(perceiveRobots(ennemy, LAUNCHER));
-      if (ly != null)
-      {
-        brain[0].x = ly.pos.x;
-        brain[0].y = ly.pos.y;
-        brain[3].z = 1;
-      }
-    }
     
-    if (brain[3].z == 1)
-    {
-      launchBullet(towards(brain[0]));
-    }
-    else
-    {
-      heading = towards(targetPos) + random(-radians(20), radians(20));
-      tryToMoveForward();
-    }
-
-
   }
 
   void rocketLauncherEmergencyBehavior()
   {
 
+  }
+
+  //
+  // selectTarget
+  // ============
+  // > try to localize a target
+  //
+  void selectTarget() {
+    // look for the closest ennemy robot
+    Robot bob = (Robot)minDist(perceiveRobots(ennemy));
+    if (bob != null) {
+      // if one found, record the position and breed of the target
+      brain[0].x = bob.pos.x;
+      brain[0].y = bob.pos.y;
+      brain[0].z = bob.breed;
+      // locks the target
+      brain[3].y = 1;
+    } else
+      // no target found
+      brain[3].y = 0;
+  }
+
+  //
+  // target
+  // ======
+  // > checks if a target has been locked
+  //
+  // output
+  // ------
+  // > true if target locket / false if not
+  //
+  boolean target() {
+    return (brain[3].y == 1);
+  }
+
+  //
+  // goBackToBase
+  // ============
+  // > go back to the closest base
+  //
+  void goBackToBase1() {
+    // look for closest base
+    Base bob = (Base)minDist(myBases);
+    if (bob != null) {
+      // if there is one, compute its distance
+      float dist = distance(bob);
+
+      if (dist <= 2) {
+        // if next to the base
+        if (energy < 500)
+          // if energy low, ask for some energy
+          askForEnergy(bob, 1500 - energy);
+        
+        // go back to "exploration" mode
+        brain[3].x = 4;
+        // make a half turn
+        right(180);
+      } else {
+        // if not next to the base, head towards it... 
+        heading = towards(bob) + random(-radians(20), radians(20));
+        // ...and try to move forward
+        tryToMoveForward1();
+      }
+    }
+  }
+
+  //
+  // tryToMoveForward
+  // ================
+  // > try to move forward after having checked that no obstacle is in front
+  //
+  void tryToMoveForward() {
+    // if there is an obstacle ahead, rotate randomly
+    if (!freeAhead(speed))
+      right(random(360));
+
+    // if there is no obstacle ahead, move forward at full speed
+    if (freeAhead(speed))
+      forward(speed);
+  }
+
+  //
+  // tryToMoveForward
+  // ================
+  // > try to move forward after having checked that no obstacle is in front
+  //
+  void tryToMoveForward1() {
+    // if there is an obstacle ahead, rotate randomly
+    if (!freeAhead(speed))
+    {
+      right(random(360));
+    }
+    // if there is no obstacle ahead, move forward at full speed
+    if (freeAhead(speed))
+      forward(speed);
   }
 }
