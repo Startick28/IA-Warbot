@@ -687,6 +687,20 @@ class RedExplorer extends Explorer {
         break;
       }
     }
+
+    ArrayList<Explorer> explo = (ArrayList<Explorer>) perceiveRobots(friend, EXPLORER);
+    if (explo != null)
+    {
+      for (Explorer exp : explo)
+      {
+        float args[] = new float[2];
+        args[0] = brain[4].x;
+        args[1] = brain[2].x;
+        sendMessage(exp, RedBase.CURRENT_PHASE, args);
+      }
+    }
+
+    brain[2].x++;
   }
 
   void explorerBehaviorStep1()
@@ -1442,7 +1456,7 @@ class RedHarvester extends Harvester {
         if (carryingFood > 100)
         {
           heading = towards(bob);
-          right(random(60,70) - 360 * launcherSpeed / (TWO_PI * basePerception));
+          right(random(75,85) - 360 * launcherSpeed / (TWO_PI * basePerception));
           tryToMoveForward();
           plantSeed();
           float[] args = new float[0];
@@ -1460,6 +1474,8 @@ class RedHarvester extends Harvester {
             askForEnergy(bob, 1500 - energy);
           // go back to "explore and collect" mode
           brain[3].x = 0;
+          giveFood(bob,carryingFood);
+          tryToMoveForward();
         } 
         else
         {
